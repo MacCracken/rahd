@@ -2,9 +2,16 @@
 name = "rahd-mcp"
 version = "2026.3.16"
 edition = "2024"
-description = "MCP tool definitions for Rahd — exposes calendar tools to AGNOS agents"
+description = "MCP tool definitions and execution for Rahd — exposes calendar tools to AGNOS agents"
 license = "GPL-3.0"
 
 [dependencies]
+rahd-core = { path = "../rahd-core" }
+rahd-store = { path = "../rahd-store" }
+rahd-schedule = { path = "../rahd-schedule" }
+rahd-ai = { path = "../rahd-ai" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+anyhow = { workspace = true }
