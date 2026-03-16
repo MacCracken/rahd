@@ -1,0 +1,10 @@
+[package]
+name = "rahd-mcp"
+version = "2026.3.16"
+edition = "2024"
+description = "MCP tool definitions for Rahd — exposes calendar tools to AGNOS agents"
+license = "GPL-3.0"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

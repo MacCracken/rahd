@@ -1,0 +1,17 @@
+[package]
+name = "rahd-ai"
+version = "2026.3.16"
+edition = "2024"
+description = "AI-powered natural language event parsing and smart scheduling for Rahd"
+license = "GPL-3.0"
+
+[dependencies]
+rahd-core = { path = "../rahd-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+uuid = { workspace = true }

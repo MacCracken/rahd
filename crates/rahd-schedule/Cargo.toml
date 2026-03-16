@@ -1,0 +1,12 @@
+[package]
+name = "rahd-schedule"
+version = "2026.3.16"
+edition = "2024"
+description = "Scheduling engine for Rahd — conflict detection and time slot suggestions"
+license = "GPL-3.0"
+
+[dependencies]
+rahd-core = { path = "../rahd-core" }
+chrono = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
