@@ -24,21 +24,15 @@ pub fn month_view(ui: &mut Ui, app: &mut RahdApp) {
         for name in &["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] {
             ui.add_sized(
                 Vec2::new(col_width, 20.0),
-                egui::Label::new(
-                    egui::RichText::new(*name)
-                        .small()
-                        .color(theme::TEXT_MUTED),
-                ),
+                egui::Label::new(egui::RichText::new(*name).small().color(theme::TEXT_MUTED)),
             );
         }
     });
 
     // Day cells
     for row in 0..row_count {
-        let (rect, _) = ui.allocate_exact_size(
-            Vec2::new(available.x, row_height),
-            egui::Sense::hover(),
-        );
+        let (rect, _) =
+            ui.allocate_exact_size(Vec2::new(available.x, row_height), egui::Sense::hover());
         let painter = ui.painter_at(rect);
 
         for col in 0..7 {

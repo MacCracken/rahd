@@ -23,8 +23,10 @@ pub fn day_view(ui: &mut Ui, app: &RahdApp) {
             };
 
             for hour in 0..24u32 {
-                let (rect, _) =
-                    ui.allocate_exact_size(Vec2::new(available_width, hour_height), egui::Sense::hover());
+                let (rect, _) = ui.allocate_exact_size(
+                    Vec2::new(available_width, hour_height),
+                    egui::Sense::hover(),
+                );
                 let painter = ui.painter_at(rect);
 
                 // Hour label
@@ -62,14 +64,10 @@ pub fn day_view(ui: &mut Ui, app: &RahdApp) {
 
                 // Events in this hour
                 for event in &events {
-                    let event_hour = event
-                        .start
-                        .with_timezone(&chrono::Local)
-                        .hour();
+                    let event_hour = event.start.with_timezone(&chrono::Local).hour();
                     if event_hour == hour {
                         let end_hour = event.end.with_timezone(&chrono::Local).hour();
-                        let duration_hours =
-                            ((end_hour as f32) - (hour as f32)).max(1.0);
+                        let duration_hours = ((end_hour as f32) - (hour as f32)).max(1.0);
                         let event_rect = Rect::from_min_size(
                             egui::pos2(rect.left() + label_width + 4.0, rect.top() + 2.0),
                             Vec2::new(

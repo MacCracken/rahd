@@ -20,9 +20,7 @@ pub fn week_view(ui: &mut Ui, app: &RahdApp) {
             let date = week_start + Duration::days(i);
             let day_name = date.format("%a %-d").to_string();
             let text = if date == today {
-                egui::RichText::new(day_name)
-                    .strong()
-                    .color(theme::ACCENT)
+                egui::RichText::new(day_name).strong().color(theme::ACCENT)
             } else {
                 egui::RichText::new(day_name).color(theme::TEXT_SECONDARY)
             };
