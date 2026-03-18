@@ -2,6 +2,9 @@
 
 Rahd exposes 5 MCP tools for AGNOS agent integration via daimon's tool registry.
 
+Tools are available both programmatically (`rahd_mcp::execute_tool`) and over HTTP
+via `rahd serve` (see [usage guide](usage.md#daimon-api-server)).
+
 ## rahd_events
 
 List or search calendar events.

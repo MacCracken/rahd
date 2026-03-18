@@ -1,0 +1,17 @@
+[package]
+name = "rahd-server"
+version = "2026.3.18"
+edition = "2024"
+description = "daimon API server — HTTP wrapper for Rahd MCP tools (port 8090)"
+license = "GPL-3.0"
+
+[dependencies]
+rahd-mcp = { path = "../rahd-mcp" }
+rahd-store = { path = "../rahd-store" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }

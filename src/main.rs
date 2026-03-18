@@ -6,6 +6,7 @@ use uuid::Uuid;
 use rahd_ai::NlEventParser;
 use rahd_core::{Contact, Event, EventFilter, Reminder, ReminderMethod};
 use rahd_schedule::Scheduler;
+use rahd_server::AppState;
 use rahd_store::EventStore;
 
 /// Rahd — AI-native calendar and contacts for AGNOS
@@ -103,6 +104,12 @@ enum Commands {
         #[command(subcommand)]
         command: ExportCommands,
     },
+    /// Start the daimon API server
+    Serve {
+        /// Address to bind (default: 127.0.0.1:8090)
+        #[arg(long, default_value = "127.0.0.1:8090")]
+        addr: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -143,7 +150,8 @@ enum ExportCommands {
     },
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -407,6 +415,10 @@ fn main() -> Result<()> {
                     );
                 }
             }
+        }
+        Commands::Serve { addr } => {
+            let state = AppState::new(store);
+            rahd_server::serve(state, &addr).await?;
         }
         Commands::Import { file } => {
             let content = std::fs::read_to_string(&file)?;

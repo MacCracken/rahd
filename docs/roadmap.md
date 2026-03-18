@@ -49,7 +49,7 @@ with ICS interop so it's not an island.
 - [ ] Habit tracking (detect patterns in recurring events)
 
 ### AGNOS Integration
-- [ ] daimon API server (port 8090) — HTTP wrapper for MCP tools
+- [x] daimon API server (port 8090) — HTTP wrapper for MCP tools
 - [ ] hoosh API integration (port 8088) — LLM-powered scheduling
 - [ ] agnoshi intents: "schedule a meeting", "when am I free", "show my week"
 - [ ] Marketplace recipe and AGNOS app registration

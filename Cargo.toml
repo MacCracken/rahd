@@ -6,6 +6,7 @@ members = [
     "crates/rahd-schedule",
     "crates/rahd-ai",
     "crates/rahd-mcp",
+    "crates/rahd-server",
 ]
 
 [workspace.dependencies]
@@ -20,10 +21,12 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
+axum = "0.8"
+tower = "0.5"
 
 [package]
 name = "rahd"
-version = "2026.3.16"
+version = "2026.3.18"
 edition = "2024"
 description = "AI-native calendar and contacts for AGNOS"
 license = "GPL-3.0"
@@ -33,6 +36,7 @@ rahd-core = { path = "crates/rahd-core" }
 rahd-store = { path = "crates/rahd-store" }
 rahd-schedule = { path = "crates/rahd-schedule" }
 rahd-ai = { path = "crates/rahd-ai" }
+rahd-server = { path = "crates/rahd-server" }
 clap = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }

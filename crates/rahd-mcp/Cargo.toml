@@ -1,6 +1,6 @@
 [package]
 name = "rahd-mcp"
-version = "2026.3.16"
+version = "2026.3.18"
 edition = "2024"
 description = "MCP tool definitions and execution for Rahd — exposes calendar tools to AGNOS agents"
 license = "GPL-3.0"

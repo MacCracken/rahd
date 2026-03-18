@@ -80,6 +80,45 @@ rahd export contacts -o contacts.vcf    # export all contacts to vCard
 rahd export contacts                    # export to stdout
 ```
 
+## daimon API Server
+
+Start the HTTP server to expose MCP tools for AGNOS agent integration:
+
+```bash
+rahd serve                              # default: 127.0.0.1:8090
+rahd serve --addr 0.0.0.0:8090         # bind to all interfaces
+```
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check (returns `ok`) |
+| `GET` | `/tools` | List all MCP tool definitions |
+| `POST` | `/tools/{tool_name}` | Execute a tool with JSON body |
+
+### Examples
+
+```bash
+# List available tools
+curl http://localhost:8090/tools
+
+# Add an event
+curl -X POST http://localhost:8090/tools/rahd_add \
+  -H 'Content-Type: application/json' \
+  -d '{"description": "lunch with Sam tomorrow at noon"}'
+
+# List events
+curl -X POST http://localhost:8090/tools/rahd_events \
+  -H 'Content-Type: application/json' \
+  -d '{"from": "2026-03-18", "to": "2026-03-25"}'
+
+# Find free slots
+curl -X POST http://localhost:8090/tools/rahd_free \
+  -H 'Content-Type: application/json' \
+  -d '{"date": "2026-03-20"}'
+```
+
 ## Database
 
 By default, the database is stored at `~/.local/share/rahd/rahd.db`. Override with:

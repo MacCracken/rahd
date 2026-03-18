@@ -4,6 +4,21 @@ All notable changes to Rahd will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026.3.18] - 2026-03-18
+
+### Added
+
+- **rahd-server**: daimon API server on port 8090 (axum-based HTTP wrapper for MCP tools)
+  - `GET /health` — health check
+  - `GET /tools` — list all 5 MCP tool definitions
+  - `POST /tools/{tool_name}` — execute any MCP tool with JSON parameters
+- **CLI**: `rahd serve` subcommand to start the daimon API server (`--addr` for custom bind address)
+- **8 server tests** covering all endpoints (health, tool listing, tool execution for all 5 tools, unknown tool handling)
+
+### Changed
+
+- All crate versions bumped to 2026.3.18
+
 ## [2026.3.16] - 2026-03-16
 
 ### Added — Initial Release

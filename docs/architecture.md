@@ -15,8 +15,10 @@ rahd/
 │   │   └── src/lib.rs      # Scheduler: conflict detection, free slots, meeting suggestions
 │   ├── rahd-ai/            # AI/NL processing
 │   │   └── src/lib.rs      # NlEventParser, ParsedEvent, PriorityScorer
-│   └── rahd-mcp/           # AGNOS integration
-│       └── src/lib.rs      # 5 MCP tool definitions
+│   ├── rahd-mcp/           # AGNOS integration
+│   │   └── src/lib.rs      # 5 MCP tool definitions + execution
+│   └── rahd-server/        # daimon API server
+│       └── src/lib.rs      # axum HTTP server on port 8090
 ```
 
 ## Data Flow
@@ -43,7 +45,7 @@ Scheduler (rahd-schedule)
     │  Conflict detection, free slot analysis
     │
     ▼
-CLI output / MCP response
+CLI output / MCP response / HTTP JSON (rahd-server)
 ```
 
 ## Storage
@@ -59,4 +61,5 @@ CLI output / MCP response
 - **rahd-store**: rahd-core + rusqlite (bundled SQLite)
 - **rahd-schedule**: rahd-core + chrono
 - **rahd-ai**: rahd-core + chrono (no external AI deps yet — local parsing only)
-- **rahd-mcp**: serde, serde_json (standalone tool definitions)
+- **rahd-mcp**: rahd-core, rahd-store, rahd-schedule, rahd-ai + serde, serde_json
+- **rahd-server**: rahd-mcp, rahd-store + axum, tokio
