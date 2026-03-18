@@ -19,8 +19,12 @@ struct Cli {
     #[arg(long, default_value = "~/.local/share/rahd/rahd.db")]
     db: String,
 
+    /// Launch the desktop GUI
+    #[arg(long)]
+    gui: bool,
+
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -167,7 +171,21 @@ async fn main() -> Result<()> {
     }
     let store = EventStore::new(&db_path)?;
 
-    match cli.command {
+    if cli.gui {
+        let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+        if let Err(e) = rahd_gui::run(store) {
+            eprintln!("GUI error: {e}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+
+    let Some(command) = cli.command else {
+        eprintln!("No command given. Use --help or --gui.");
+        std::process::exit(1);
+    };
+
+    match command {
         Commands::Add {
             description,
             remind,

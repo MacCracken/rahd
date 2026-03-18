@@ -1,5 +1,20 @@
 # Usage Guide
 
+## Desktop GUI
+
+Launch the graphical calendar with:
+
+```bash
+rahd --gui
+```
+
+The GUI provides three calendar views:
+- **Day** — hourly timeline with event blocks
+- **Week** — 7-column grid (Mon-Sun) with 6am-10pm hours
+- **Month** — day cell grid with compact event summaries
+
+Use the sidebar mini calendar and toolbar arrows to navigate. The current day and hour are highlighted in cyan.
+
 ## Adding events
 
 Use natural language to create events:

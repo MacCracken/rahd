@@ -1,0 +1,15 @@
+[package]
+name = "rahd-gui"
+version = "2026.3.18"
+edition = "2024"
+description = "Desktop GUI for Rahd calendar — day/week/month views (egui/eframe)"
+license = "GPL-3.0"
+
+[dependencies]
+rahd-core = { path = "../rahd-core" }
+rahd-store = { path = "../rahd-store" }
+rahd-schedule = { path = "../rahd-schedule" }
+egui = { workspace = true }
+eframe = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }

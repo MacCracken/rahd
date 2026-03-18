@@ -17,8 +17,14 @@ rahd/
 │   │   └── src/lib.rs      # NlEventParser, ParsedEvent, PriorityScorer
 │   ├── rahd-mcp/           # AGNOS integration
 │   │   └── src/lib.rs      # 5 MCP tool definitions + execution
-│   └── rahd-server/        # daimon API server
-│       └── src/lib.rs      # axum HTTP server on port 8090
+│   ├── rahd-server/        # daimon API server
+│   │   └── src/lib.rs      # axum HTTP server on port 8090
+│   └── rahd-gui/           # Desktop GUI
+│       └── src/
+│           ├── lib.rs      # run() entry point (eframe)
+│           ├── app.rs      # RahdApp state + eframe::App
+│           ├── theme.rs    # AGNOS dark theme palette
+│           └── views/      # day, week, month, sidebar, toolbar
 ```
 
 ## Data Flow
@@ -63,3 +69,4 @@ CLI output / MCP response / HTTP JSON (rahd-server)
 - **rahd-ai**: rahd-core + chrono (no external AI deps yet — local parsing only)
 - **rahd-mcp**: rahd-core, rahd-store, rahd-schedule, rahd-ai + serde, serde_json
 - **rahd-server**: rahd-mcp, rahd-store + axum, tokio
+- **rahd-gui**: rahd-core, rahd-store, rahd-schedule + egui, eframe, chrono
