@@ -475,5 +475,25 @@ mod tests {
         assert!(PriorityScorer::score(&group, now) > PriorityScorer::score(&solo, now));
     }
 
+    #[test]
+    fn priority_scorer_past_event_zero() {
+        let now = Utc.with_ymd_and_hms(2026, 3, 16, 12, 0, 0).unwrap();
+        let past = Event {
+            id: Uuid::new_v4(),
+            title: "Past".to_string(),
+            description: None,
+            start: now - Duration::hours(2),
+            end: now - Duration::hours(1),
+            location: None,
+            attendees: vec![],
+            recurrence: None,
+            reminders: vec![],
+            calendar_id: "default".to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        assert_eq!(PriorityScorer::score(&past, now), 0.0);
+    }
+
     use chrono::Timelike;
 }

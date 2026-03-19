@@ -137,7 +137,10 @@ fn mini_calendar(ui: &mut Ui, app: &mut RahdApp) {
                             .monospace()
                             .color(theme::TEXT_SECONDARY)
                     };
-                    if ui.label(text).clicked() {
+                    if ui
+                        .add(egui::Label::new(text).sense(egui::Sense::click()))
+                        .clicked()
+                    {
                         app.selected_date = date;
                         app.needs_refresh = true;
                     }

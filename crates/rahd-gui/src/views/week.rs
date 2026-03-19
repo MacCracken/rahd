@@ -55,6 +55,9 @@ pub fn week_view(ui: &mut Ui, app: &mut RahdApp) {
                 })
                 .collect();
 
+            // Check if pointer was just released (for drop detection)
+            let pointer_released = app.drag.is_some() && ui.input(|i| i.pointer.any_released());
+
             for hour in 6..22u32 {
                 let row_width = available_width;
                 let (rect, _) =
@@ -112,7 +115,7 @@ pub fn week_view(ui: &mut Ui, app: &mut RahdApp) {
                     let cell_response = ui.interact(
                         cell_rect,
                         egui::Id::new(("week_cell", col, hour)),
-                        egui::Sense::click_and_drag(),
+                        egui::Sense::hover(),
                     );
 
                     // Highlight drop target
@@ -124,8 +127,9 @@ pub fn week_view(ui: &mut Ui, app: &mut RahdApp) {
                         );
                     }
 
-                    // Handle drop on this cell
-                    if cell_response.drag_stopped()
+                    // Handle drop: pointer released while hovering this cell
+                    if pointer_released
+                        && cell_response.hovered()
                         && let Some(drag) = app.drag.take()
                     {
                         let new_start = date.and_hms_opt(hour, 0, 0).unwrap().and_utc();
@@ -184,36 +188,5 @@ pub fn week_view(ui: &mut Ui, app: &mut RahdApp) {
                     }
                 }
             }
-
-            // Fallback drop handler via pointer position
-            handle_week_drop(ui, app, week_start, hour_height, label_width, col_width);
         });
-}
-
-/// If drag ends without landing on a specific cell, resolve from pointer position.
-fn handle_week_drop(
-    ui: &Ui,
-    app: &mut RahdApp,
-    week_start: chrono::NaiveDate,
-    hour_height: f32,
-    label_width: f32,
-    col_width: f32,
-) {
-    if app.drag.is_some()
-        && ui.input(|i| i.pointer.any_released())
-        && let Some(pos) = ui.input(|i| i.pointer.interact_pos())
-    {
-        let scroll_rect = ui.min_rect();
-        let relative_y = pos.y - scroll_rect.top();
-        let relative_x = pos.x - scroll_rect.left() - label_width;
-
-        let hour = (6 + (relative_y / hour_height) as u32).clamp(6, 21);
-        let col = ((relative_x / col_width) as i64).clamp(0, 6);
-        let date = week_start + Duration::days(col);
-
-        if let Some(drag) = app.drag.take() {
-            let new_start = date.and_hms_opt(hour, 0, 0).unwrap().and_utc();
-            app.reschedule_event(drag.event_id, new_start, drag.duration);
-        }
-    }
 }

@@ -252,8 +252,11 @@ async fn main() -> Result<()> {
                 });
             }
             event.updated_at = chrono::Utc::now();
-            store.update_event(&event)?;
-            println!("Updated: {event}");
+            if store.update_event(&event)? {
+                println!("Updated: {event}");
+            } else {
+                println!("Event not found.");
+            }
         }
         Commands::List { today, week, month } => {
             let now = Local::now();

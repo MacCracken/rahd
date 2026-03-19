@@ -31,7 +31,9 @@ impl EventStore {
 
     fn run_migrations(&self) -> Result<()> {
         self.conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS events (
+            "PRAGMA journal_mode=WAL;
+            PRAGMA busy_timeout=5000;
+            CREATE TABLE IF NOT EXISTS events (
                 id TEXT PRIMARY KEY,
                 data TEXT NOT NULL,
                 start_ts TEXT NOT NULL,
@@ -305,6 +307,38 @@ mod tests {
         assert!(store.delete_contact(contact.id).unwrap());
         let contacts = store.list_contacts().unwrap();
         assert!(contacts.is_empty());
+    }
+
+    #[test]
+    fn update_nonexistent_event_returns_false() {
+        let store = EventStore::new_in_memory().unwrap();
+        let event = make_event("Ghost", 10, 11);
+        assert!(!store.update_event(&event).unwrap());
+    }
+
+    #[test]
+    fn update_existing_event_returns_true() {
+        let store = EventStore::new_in_memory().unwrap();
+        let mut event = make_event("Original", 10, 11);
+        store.add_event(&event).unwrap();
+        event.title = "Updated".to_string();
+        assert!(store.update_event(&event).unwrap());
+    }
+
+    #[test]
+    fn list_events_search_description() {
+        let store = EventStore::new_in_memory().unwrap();
+        let mut event = make_event("Meeting", 9, 10);
+        event.description = Some("Discuss the project roadmap".to_string());
+        store.add_event(&event).unwrap();
+        store.add_event(&make_event("Lunch", 12, 13)).unwrap();
+        let filter = EventFilter {
+            search: Some("roadmap".to_string()),
+            ..Default::default()
+        };
+        let events = store.list_events(&filter).unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].title, "Meeting");
     }
 
     #[test]

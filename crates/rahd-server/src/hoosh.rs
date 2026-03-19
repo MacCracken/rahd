@@ -97,14 +97,13 @@ impl HooshClient {
     }
 
     /// Check if hoosh is reachable.
-    pub async fn health(&self) -> anyhow::Result<bool> {
-        let resp = self
-            .client
+    pub async fn health(&self) -> bool {
+        self.client
             .get(format!("{}/health", self.base_url))
             .timeout(std::time::Duration::from_secs(3))
             .send()
-            .await;
-        Ok(resp.is_ok_and(|r| r.status().is_success()))
+            .await
+            .is_ok_and(|r| r.status().is_success())
     }
 
     /// Send a scheduling intent to hoosh for LLM processing.

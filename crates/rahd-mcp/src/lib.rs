@@ -32,7 +32,7 @@ pub fn tool_definitions() -> Vec<ToolDescription> {
                 "properties": {
                     "from": {"type": "string", "description": "Start date (YYYY-MM-DD)"},
                     "to": {"type": "string", "description": "End date (YYYY-MM-DD)"},
-                    "search": {"type": "string", "description": "Text search in event titles"}
+                    "search": {"type": "string", "description": "Text search in event titles and descriptions"}
                 },
                 "required": []
             }),

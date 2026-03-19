@@ -387,6 +387,8 @@ pub fn events_to_ics(events: &[Event]) -> String {
 
 /// Parse events from ICS content.
 pub fn events_from_ics(ics: &str) -> Vec<Event> {
+    // Unfold RFC 5545 continuation lines (CRLF + whitespace).
+    let ics = ics.replace("\r\n ", "").replace("\r\n\t", "");
     let mut events = Vec::new();
     let mut in_event = false;
     let mut uid = None;
@@ -555,6 +557,8 @@ pub fn contacts_to_vcard(contacts: &[Contact]) -> String {
 
 /// Parse contacts from vCard content.
 pub fn contacts_from_vcard(vcard: &str) -> Vec<Contact> {
+    // Unfold RFC 6350 continuation lines.
+    let vcard = vcard.replace("\r\n ", "").replace("\r\n\t", "");
     let mut contacts = Vec::new();
     let mut in_card = false;
     let mut name = None;
@@ -879,6 +883,70 @@ mod tests {
         assert_eq!(parsed[0].email.as_deref(), Some("alice@example.com"));
         assert_eq!(parsed[0].phone.as_deref(), Some("555-1234"));
         assert_eq!(parsed[0].organization.as_deref(), Some("Acme Corp"));
+    }
+
+    #[test]
+    fn filter_search_description() {
+        let mut event = make_event("Team Meeting", 10, 11);
+        event.description = Some("Discuss the quarterly budget".to_string());
+        let filter = EventFilter {
+            search: Some("budget".to_string()),
+            ..Default::default()
+        };
+        assert!(filter.matches(&event));
+    }
+
+    #[test]
+    fn filter_search_no_match() {
+        let mut event = make_event("Team Meeting", 10, 11);
+        event.description = Some("Discuss the quarterly budget".to_string());
+        let filter = EventFilter {
+            search: Some("vacation".to_string()),
+            ..Default::default()
+        };
+        assert!(!filter.matches(&event));
+    }
+
+    #[test]
+    fn ics_line_folding_unfold() {
+        // Simulate a folded ICS line (CRLF + space continuation)
+        let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nSUMMARY:A very long ev\r\n ent title\r\nDTSTART:20260316T100000Z\r\nDTEND:20260316T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        let events = events_from_ics(ics);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].title, "A very long event title");
+    }
+
+    #[test]
+    fn monthly_recurrence_day_zero_clamped() {
+        let mut event = make_event("Monthly", 10, 11);
+        event.start = Utc.with_ymd_and_hms(2026, 1, 1, 10, 0, 0).unwrap();
+        event.end = Utc.with_ymd_and_hms(2026, 1, 1, 11, 0, 0).unwrap();
+        event.recurrence = Some(Recurrence::Monthly { day: 0 });
+        let start = Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2026, 4, 1, 0, 0, 0).unwrap();
+        // Should not panic — day=0 is clamped to 1
+        let instances = expand_recurrence(&event, start, end);
+        assert!(!instances.is_empty());
+        // Each instance should land on day 1
+        for inst in &instances {
+            assert_eq!(inst.start.date_naive().day(), 1);
+        }
+    }
+
+    #[test]
+    fn vcard_escaping_special_chars() {
+        let contact = Contact {
+            id: Uuid::new_v4(),
+            name: "O'Brien; Jr.".to_string(),
+            email: None,
+            phone: None,
+            organization: Some("Foo, Inc.".to_string()),
+            notes: None,
+            created_at: Utc::now(),
+        };
+        let vcard = contact_to_vcard(&contact);
+        assert!(vcard.contains("FN:O'Brien\\; Jr."));
+        assert!(vcard.contains("ORG:Foo\\, Inc."));
     }
 
     #[test]

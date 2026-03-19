@@ -1,6 +1,6 @@
 //! Day view — hourly timeline with events and drag-and-drop rescheduling.
 
-use chrono::{Local, NaiveDate, Timelike};
+use chrono::{Local, Timelike};
 use egui::{Rect, Ui, Vec2};
 
 use crate::app::{DragState, RahdApp};
@@ -36,7 +36,7 @@ pub fn day_view(ui: &mut Ui, app: &mut RahdApp) {
             for hour in 0..24u32 {
                 let (rect, response) = ui.allocate_exact_size(
                     Vec2::new(available_width, hour_height),
-                    egui::Sense::click_and_drag(),
+                    egui::Sense::hover(),
                 );
                 let painter = ui.painter_at(rect);
 
@@ -86,20 +86,12 @@ pub fn day_view(ui: &mut Ui, app: &mut RahdApp) {
                     );
                 }
 
-                // Handle drop
-                if response.drag_stopped()
-                    && let Some(drag) = app.drag.take()
-                {
-                    let new_start = selected_date.and_hms_opt(hour, 0, 0).unwrap().and_utc();
-                    app.reschedule_event(drag.event_id, new_start, drag.duration);
-                }
-
                 // Events in this hour
                 for (id, title, start, start_hour_val, duration) in &event_slots {
                     if *start_hour_val == hour {
                         let duration_secs = duration.num_seconds() as f32;
-                        let event_height =
-                            (duration_secs / 3600.0 * hour_height).max(hour_height - 4.0);
+                        let event_height = (duration_secs / 3600.0 * hour_height)
+                            .clamp(hour_height - 4.0, hour_height * 4.0);
                         let event_rect = Rect::from_min_size(
                             egui::pos2(rect.left() + label_width + 4.0, rect.top() + 2.0),
                             Vec2::new(available_width - label_width - 12.0, event_height),
@@ -152,30 +144,5 @@ pub fn day_view(ui: &mut Ui, app: &mut RahdApp) {
                     }
                 }
             }
-
-            // Handle drop on the scroll area (using pointer position to determine hour)
-            handle_day_drop(ui, app, selected_date, hour_height, label_width);
         });
-}
-
-/// If a drag ends and wasn't caught by a specific hour row, resolve by pointer position.
-fn handle_day_drop(
-    ui: &Ui,
-    app: &mut RahdApp,
-    date: NaiveDate,
-    hour_height: f32,
-    _label_width: f32,
-) {
-    if app.drag.is_some()
-        && ui.input(|i| i.pointer.any_released())
-        && let Some(pos) = ui.input(|i| i.pointer.interact_pos())
-    {
-        let scroll_rect = ui.min_rect();
-        let relative_y = pos.y - scroll_rect.top();
-        let hour = ((relative_y / hour_height) as u32).clamp(0, 23);
-        if let Some(drag) = app.drag.take() {
-            let new_start = date.and_hms_opt(hour, 0, 0).unwrap().and_utc();
-            app.reschedule_event(drag.event_id, new_start, drag.duration);
-        }
-    }
 }

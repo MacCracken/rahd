@@ -102,19 +102,16 @@ async fn call_tool(
 }
 
 async fn hoosh_health(State(state): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
-    match state.hoosh.health().await {
-        Ok(true) => (
+    if state.hoosh.health().await {
+        (
             StatusCode::OK,
             Json(serde_json::json!({"status": "connected"})),
-        ),
-        Ok(false) => (
+        )
+    } else {
+        (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(serde_json::json!({"status": "unreachable"})),
-        ),
-        Err(e) => (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(serde_json::json!({"status": "error", "error": e.to_string()})),
-        ),
+        )
     }
 }
 
@@ -353,8 +350,29 @@ mod tests {
             .await
             .unwrap();
         let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        // Could be "unreachable" or "error" depending on network state
-        assert!(result.get("status").is_some());
+        assert_eq!(result["status"], "unreachable");
+    }
+
+    #[tokio::test]
+    async fn call_tool_add_then_search_description() {
+        let app = router(test_state());
+        // Add an event with a description
+        let add_resp = app
+            .clone()
+            .oneshot(
+                Request::post("/tools/rahd_add")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "description": "budget meeting tomorrow at noon"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(add_resp.status(), StatusCode::OK);
     }
 
     #[tokio::test]

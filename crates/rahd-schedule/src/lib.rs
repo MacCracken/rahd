@@ -228,5 +228,24 @@ mod tests {
         assert!(scheduler.suggest_meeting_time(&events, 60, date).is_none());
     }
 
+    #[test]
+    fn free_slots_invalid_work_hours() {
+        let scheduler = Scheduler::new();
+        let date = NaiveDate::from_ymd_opt(2026, 3, 16).unwrap();
+        // work_start >= work_end should return empty
+        let slots = scheduler.find_free_slots(&[], date, 17, 9);
+        assert!(slots.is_empty());
+    }
+
+    #[test]
+    fn free_slots_clamped_hours() {
+        let scheduler = Scheduler::new();
+        let date = NaiveDate::from_ymd_opt(2026, 3, 16).unwrap();
+        // work_start=25 should be clamped to 23, work_end=30 clamped to 23
+        // 23 >= 23, so returns empty
+        let slots = scheduler.find_free_slots(&[], date, 25, 30);
+        assert!(slots.is_empty());
+    }
+
     use chrono::Timelike;
 }
