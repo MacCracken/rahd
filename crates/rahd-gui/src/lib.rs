@@ -3,6 +3,7 @@
 //! Built with egui/eframe following the AGNOS desktop app pattern.
 
 mod app;
+mod notifications;
 #[allow(dead_code)]
 mod theme;
 mod views;

@@ -267,7 +267,7 @@ fn advance_to_next_month(current: DateTime<Utc>, day: u32) -> DateTime<Utc> {
         month = 1;
         year += 1;
     }
-    let target_day = day.min(days_in_month(year, month));
+    let target_day = day.max(1).min(days_in_month(year, month));
     let target_date = NaiveDate::from_ymd_opt(year, month, target_day).unwrap();
     let time = current.time();
     target_date.and_time(time).and_utc()
@@ -530,16 +530,16 @@ pub fn contact_to_vcard(contact: &Contact) -> String {
     let mut lines = Vec::new();
     lines.push("BEGIN:VCARD".to_string());
     lines.push("VERSION:3.0".to_string());
-    lines.push(format!("FN:{}", contact.name));
+    lines.push(format!("FN:{}", ics_escape(&contact.name)));
     lines.push(format!("UID:{}", contact.id));
     if let Some(email) = &contact.email {
-        lines.push(format!("EMAIL:{email}"));
+        lines.push(format!("EMAIL:{}", ics_escape(email)));
     }
     if let Some(phone) = &contact.phone {
-        lines.push(format!("TEL:{phone}"));
+        lines.push(format!("TEL:{}", ics_escape(phone)));
     }
     if let Some(org) = &contact.organization {
-        lines.push(format!("ORG:{org}"));
+        lines.push(format!("ORG:{}", ics_escape(org)));
     }
     if let Some(notes) = &contact.notes {
         lines.push(format!("NOTE:{}", ics_escape(notes)));

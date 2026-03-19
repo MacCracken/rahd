@@ -114,7 +114,12 @@ impl EventStore {
             let event: Event = serde_json::from_str(&data)?;
             if let Some(search) = &filter.search {
                 let lower = search.to_lowercase();
-                if !event.title.to_lowercase().contains(&lower) {
+                let title_match = event.title.to_lowercase().contains(&lower);
+                let desc_match = event
+                    .description
+                    .as_ref()
+                    .is_some_and(|d| d.to_lowercase().contains(&lower));
+                if !title_match && !desc_match {
                     continue;
                 }
             }
@@ -123,10 +128,10 @@ impl EventStore {
         Ok(events)
     }
 
-    /// Update an existing event.
-    pub fn update_event(&self, event: &Event) -> Result<()> {
+    /// Update an existing event. Returns true if it existed.
+    pub fn update_event(&self, event: &Event) -> Result<bool> {
         let data = serde_json::to_string(event)?;
-        self.conn.execute(
+        let rows = self.conn.execute(
             "UPDATE events SET data = ?1, start_ts = ?2, end_ts = ?3, calendar_id = ?4 WHERE id = ?5",
             params![
                 data,
@@ -136,7 +141,7 @@ impl EventStore {
                 event.id.to_string(),
             ],
         )?;
-        Ok(())
+        Ok(rows > 0)
     }
 
     /// Delete an event. Returns true if it existed.

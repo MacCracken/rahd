@@ -48,6 +48,11 @@ impl Scheduler {
         work_start: u32,
         work_end: u32,
     ) -> Vec<TimeSlot> {
+        let work_start = work_start.min(23);
+        let work_end = work_end.min(23);
+        if work_start >= work_end {
+            return Vec::new();
+        }
         let day_start = date.and_hms_opt(work_start, 0, 0).unwrap().and_utc();
         let day_end = date.and_hms_opt(work_end, 0, 0).unwrap().and_utc();
 

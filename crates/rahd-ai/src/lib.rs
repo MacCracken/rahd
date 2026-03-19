@@ -311,7 +311,11 @@ impl PriorityScorer {
     /// - Events with attendees score higher (social commitment)
     /// - Recurring events score slightly lower (can be rescheduled)
     pub fn score(event: &rahd_core::Event, now: DateTime<Utc>) -> f64 {
-        let hours_until = (event.start - now).num_hours().max(0) as f64;
+        // Past events get a low score
+        if event.start < now {
+            return 0.0;
+        }
+        let hours_until = (event.start - now).num_hours() as f64;
         // Base score: inversely proportional to time until event
         let time_score = 100.0 / (1.0 + hours_until);
 

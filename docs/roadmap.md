@@ -33,12 +33,12 @@ with ICS interop so it's not an island.
 
 ### Desktop GUI
 - [x] egui desktop app with day/week/month views
-- [ ] Reminder notifications via desktop notifications (notify-rust)
-- [ ] Drag-and-drop event rescheduling
+- [x] Reminder notifications via desktop notifications (notify-rust)
+- [x] Drag-and-drop event rescheduling
 
 ### AGNOS Integration
 - [x] daimon API server (port 8090) — HTTP wrapper for MCP tools
-- [ ] hoosh API integration (port 8088) — LLM-powered scheduling
+- [x] hoosh API integration (port 8088) — LLM-powered scheduling
 - [ ] agnoshi intents: "schedule a meeting", "when am I free", "show my week"
 - [ ] Marketplace recipe and AGNOS app registration
 

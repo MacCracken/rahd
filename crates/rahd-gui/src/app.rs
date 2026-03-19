@@ -5,6 +5,7 @@ use rahd_core::{Event, EventFilter};
 use rahd_store::EventStore;
 use std::sync::{Arc, Mutex};
 
+use crate::notifications::ReminderChecker;
 use crate::views;
 
 /// Active calendar view.
@@ -15,6 +16,17 @@ pub enum View {
     Month,
 }
 
+/// Drag-and-drop state for event rescheduling.
+#[derive(Debug, Clone)]
+pub struct DragState {
+    /// The event being dragged.
+    pub event_id: uuid::Uuid,
+    /// Original start time for cancellation reference.
+    pub original_start: chrono::DateTime<chrono::Utc>,
+    /// Event duration preserved during drag.
+    pub duration: Duration,
+}
+
 /// Main application state.
 pub struct RahdApp {
     pub store: Arc<Mutex<EventStore>>,
@@ -22,6 +34,9 @@ pub struct RahdApp {
     pub selected_date: NaiveDate,
     pub events: Vec<Event>,
     pub needs_refresh: bool,
+    pub reminder_checker: ReminderChecker,
+    /// Active drag-and-drop operation.
+    pub drag: Option<DragState>,
 }
 
 impl RahdApp {
@@ -33,6 +48,8 @@ impl RahdApp {
             selected_date: today,
             events: Vec::new(),
             needs_refresh: true,
+            reminder_checker: ReminderChecker::new(),
+            drag: None,
         };
         app.refresh_events();
         app
@@ -124,6 +141,24 @@ impl RahdApp {
         self.needs_refresh = true;
     }
 
+    /// Reschedule an event to a new start time, preserving duration.
+    pub fn reschedule_event(
+        &mut self,
+        event_id: uuid::Uuid,
+        new_start: chrono::DateTime<chrono::Utc>,
+        duration: Duration,
+    ) {
+        if let Ok(store) = self.store.lock()
+            && let Ok(Some(mut event)) = store.get_event(event_id)
+        {
+            event.start = new_start;
+            event.end = new_start + duration;
+            event.updated_at = chrono::Utc::now();
+            let _ = store.update_event(&event);
+        }
+        self.needs_refresh = true;
+    }
+
     /// Get events for a specific date.
     pub fn events_on(&self, date: NaiveDate) -> Vec<&Event> {
         self.events
@@ -140,6 +175,24 @@ impl eframe::App for RahdApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if self.needs_refresh {
             self.refresh_events();
+        }
+
+        // Check for due reminders — fetch upcoming events independently of the view.
+        {
+            let now = chrono::Utc::now();
+            let horizon = now + Duration::hours(24);
+            let filter = EventFilter {
+                from: Some(now - Duration::hours(1)),
+                to: Some(horizon),
+                ..Default::default()
+            };
+            let reminder_events = self
+                .store
+                .lock()
+                .ok()
+                .and_then(|s| s.list_events(&filter).ok())
+                .unwrap_or_default();
+            self.reminder_checker.check(&reminder_events);
         }
 
         egui::SidePanel::left("sidebar")
@@ -159,5 +212,10 @@ impl eframe::App for RahdApp {
                 View::Month => views::month::month_view(ui, self),
             }
         });
+
+        // Clear stale drag state if the pointer was released without a drop target.
+        if self.drag.is_some() && ctx.input(|i| i.pointer.any_released()) {
+            self.drag = None;
+        }
     }
 }

@@ -4,6 +4,10 @@
 //! - `GET /health` — health check
 //! - `GET /tools` — list MCP tool definitions
 //! - `POST /tools/{tool_name}` — execute an MCP tool
+//! - `GET /hoosh/health` — check hoosh connectivity
+//! - `POST /hoosh/intent` — send scheduling intent to hoosh for LLM processing
+
+pub mod hoosh;
 
 use std::sync::{Arc, Mutex};
 
@@ -16,17 +20,26 @@ use axum::{
 use rahd_mcp::{execute_tool, tool_definitions};
 use rahd_store::EventStore;
 
+use crate::hoosh::{HooshClient, IntentContext, SchedulingIntent};
+
 /// Shared application state.
 #[derive(Clone)]
 pub struct AppState {
     store: Arc<Mutex<EventStore>>,
+    hoosh: HooshClient,
 }
 
 impl AppState {
     pub fn new(store: EventStore) -> Self {
         Self {
             store: Arc::new(Mutex::new(store)),
+            hoosh: HooshClient::default_local(),
         }
+    }
+
+    pub fn with_hoosh_url(mut self, url: &str) -> Self {
+        self.hoosh = HooshClient::new(url);
+        self
     }
 }
 
@@ -36,6 +49,8 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/tools", get(list_tools))
         .route("/tools/{tool_name}", post(call_tool))
+        .route("/hoosh/health", get(hoosh_health))
+        .route("/hoosh/intent", post(hoosh_intent))
         .with_state(state)
 }
 
@@ -52,9 +67,15 @@ async fn health() -> &'static str {
     "ok"
 }
 
-async fn list_tools() -> Json<serde_json::Value> {
+async fn list_tools() -> (StatusCode, Json<serde_json::Value>) {
     let tools = tool_definitions();
-    Json(serde_json::to_value(&tools).unwrap())
+    match serde_json::to_value(&tools) {
+        Ok(v) => (StatusCode::OK, Json(v)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ),
+    }
 }
 
 async fn call_tool(
@@ -62,12 +83,114 @@ async fn call_tool(
     Path(tool_name): Path<String>,
     Json(params): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let store = state.store.lock().unwrap();
+    let store = match state.store.lock() {
+        Ok(s) => s,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "store unavailable"})),
+            );
+        }
+    };
     match execute_tool(&store, &tool_name, &params) {
         Ok(result) => (StatusCode::OK, Json(result)),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": e.to_string()})),
+        ),
+    }
+}
+
+async fn hoosh_health(State(state): State<AppState>) -> (StatusCode, Json<serde_json::Value>) {
+    match state.hoosh.health().await {
+        Ok(true) => (
+            StatusCode::OK,
+            Json(serde_json::json!({"status": "connected"})),
+        ),
+        Ok(false) => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"status": "unreachable"})),
+        ),
+        Err(e) => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({"status": "error", "error": e.to_string()})),
+        ),
+    }
+}
+
+async fn hoosh_intent(
+    State(state): State<AppState>,
+    Json(mut intent): Json<SchedulingIntent>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    // Auto-populate context if not provided
+    if intent.context.is_none() {
+        let events = state
+            .store
+            .lock()
+            .ok()
+            .and_then(|s| s.list_events(&rahd_core::EventFilter::default()).ok())
+            .unwrap_or_default();
+
+        let events_json: Vec<serde_json::Value> = events
+            .iter()
+            .map(|e| {
+                serde_json::json!({
+                    "title": e.title,
+                    "start": e.start.to_rfc3339(),
+                    "end": e.end.to_rfc3339(),
+                })
+            })
+            .collect();
+
+        intent.context = Some(IntentContext {
+            events: events_json,
+            free_slots: None,
+            now: chrono::Local::now().to_rfc3339(),
+        });
+    }
+
+    match state.hoosh.schedule(&intent).await {
+        Ok(response) => {
+            // Execute the suggested action if it maps to a known tool
+            let result = match response.action.as_str() {
+                "create_event" => {
+                    // Forward to rahd_add tool
+                    let store = match state.store.lock() {
+                        Ok(s) => s,
+                        Err(_) => {
+                            return (
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                                Json(serde_json::json!({"error": "store unavailable"})),
+                            );
+                        }
+                    };
+                    match execute_tool(&store, "rahd_add", &response.params) {
+                        Ok(tool_result) => serde_json::json!({
+                            "action": response.action,
+                            "explanation": response.explanation,
+                            "result": tool_result,
+                        }),
+                        Err(e) => serde_json::json!({
+                            "action": response.action,
+                            "explanation": response.explanation,
+                            "error": e.to_string(),
+                        }),
+                    }
+                }
+                _ => {
+                    // Return the LLM suggestion without auto-executing
+                    serde_json::json!({
+                        "action": response.action,
+                        "explanation": response.explanation,
+                        "params": response.params,
+                    })
+                }
+            };
+            (StatusCode::OK, Json(result))
+        }
+        Err(e) => (
+            StatusCode::BAD_GATEWAY,
+            Json(serde_json::json!({"error": format!("hoosh error: {e}")})),
         ),
     }
 }
@@ -167,7 +290,7 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.status(), StatusCode::INTERNAL_SERVER_ERROR);
         let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
             .await
             .unwrap();
@@ -215,6 +338,41 @@ mod tests {
             .unwrap();
         let result: Vec<serde_json::Value> = serde_json::from_slice(&body).unwrap();
         assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn hoosh_health_unreachable() {
+        // hoosh isn't running in test, so health should report unreachable
+        let app = router(test_state());
+        let resp = app
+            .oneshot(Request::get("/hoosh/health").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        // Could be "unreachable" or "error" depending on network state
+        assert!(result.get("status").is_some());
+    }
+
+    #[tokio::test]
+    async fn hoosh_intent_fails_without_hoosh() {
+        let app = router(test_state());
+        let resp = app
+            .oneshot(
+                Request::post("/hoosh/intent")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "schedule a meeting"}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        // Should return BAD_GATEWAY since hoosh isn't running
+        assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
     }
 
     #[tokio::test]

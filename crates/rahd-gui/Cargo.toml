@@ -13,3 +13,4 @@ egui = { workspace = true }
 eframe = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+notify-rust = "4"

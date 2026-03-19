@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{Duration, Local, NaiveDate};
+use chrono::{Datelike, Duration, Local, NaiveDate};
 use clap::{Parser, Subcommand};
 use uuid::Uuid;
 
@@ -266,23 +266,26 @@ async fn main() -> Result<()> {
                     ..Default::default()
                 }
             } else if week {
-                let start = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
-                let end = (now.date_naive() + Duration::days(7))
-                    .and_hms_opt(23, 59, 59)
-                    .unwrap();
+                let today = now.date_naive();
+                let weekday = today.weekday().num_days_from_monday();
+                let monday = today - Duration::days(weekday as i64);
+                let sunday = monday + Duration::days(6);
                 EventFilter {
-                    from: Some(start.and_utc()),
-                    to: Some(end.and_utc()),
+                    from: Some(monday.and_hms_opt(0, 0, 0).unwrap().and_utc()),
+                    to: Some(sunday.and_hms_opt(23, 59, 59).unwrap().and_utc()),
                     ..Default::default()
                 }
             } else if month {
-                let start = now.date_naive().and_hms_opt(0, 0, 0).unwrap();
-                let end = (now.date_naive() + Duration::days(30))
-                    .and_hms_opt(23, 59, 59)
-                    .unwrap();
+                let today = now.date_naive();
+                let first = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap();
+                let last = if today.month() == 12 {
+                    NaiveDate::from_ymd_opt(today.year() + 1, 1, 1).unwrap()
+                } else {
+                    NaiveDate::from_ymd_opt(today.year(), today.month() + 1, 1).unwrap()
+                } - Duration::days(1);
                 EventFilter {
-                    from: Some(start.and_utc()),
-                    to: Some(end.and_utc()),
+                    from: Some(first.and_hms_opt(0, 0, 0).unwrap().and_utc()),
+                    to: Some(last.and_hms_opt(23, 59, 59).unwrap().and_utc()),
                     ..Default::default()
                 }
             } else {
@@ -399,7 +402,12 @@ async fn main() -> Result<()> {
                 Some(d) => d.parse::<NaiveDate>()?,
                 None => Local::now().date_naive(),
             };
-            let events = store.list_events(&EventFilter::default())?;
+            let day_filter = EventFilter {
+                from: Some(target.and_hms_opt(0, 0, 0).unwrap().and_utc()),
+                to: Some(target.and_hms_opt(23, 59, 59).unwrap().and_utc()),
+                ..Default::default()
+            };
+            let events = store.list_events(&day_filter)?;
             let scheduler = Scheduler::new();
             let slots = scheduler.find_free_slots(&events, target, 9, 17);
             if slots.is_empty() {

@@ -6,6 +6,7 @@ description = "daimon API server — HTTP wrapper for Rahd MCP tools (port 8090)
 license = "GPL-3.0"
 
 [dependencies]
+rahd-core = { path = "../rahd-core" }
 rahd-mcp = { path = "../rahd-mcp" }
 rahd-store = { path = "../rahd-store" }
 serde = { workspace = true }
@@ -15,3 +16,5 @@ axum = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
+reqwest = { workspace = true }
+chrono = { workspace = true }

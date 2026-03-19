@@ -106,7 +106,7 @@ pub fn execute_tool(
         "rahd_free" => execute_free(store, params),
         "rahd_conflicts" => execute_conflicts(store, params),
         "rahd_contacts" => execute_contacts(store, params),
-        _ => Ok(serde_json::json!({"error": format!("unknown tool: {tool_name}")})),
+        _ => Err(anyhow::anyhow!("unknown tool: {tool_name}")),
     }
 }
 
@@ -217,7 +217,12 @@ fn execute_free(store: &EventStore, params: &serde_json::Value) -> Result<serde_
         .and_then(|v| v.as_u64())
         .unwrap_or(17) as u32;
 
-    let events = store.list_events(&EventFilter::default())?;
+    let day_filter = EventFilter {
+        from: Some(date.and_hms_opt(0, 0, 0).unwrap().and_utc()),
+        to: Some(date.and_hms_opt(23, 59, 59).unwrap().and_utc()),
+        ..Default::default()
+    };
+    let events = store.list_events(&day_filter)?;
     let scheduler = Scheduler::new();
     let slots = scheduler.find_free_slots(&events, date, work_start, work_end);
 
@@ -378,7 +383,7 @@ mod tests {
     #[test]
     fn execute_unknown_tool() {
         let store = EventStore::new_in_memory().unwrap();
-        let result = execute_tool(&store, "unknown", &serde_json::json!({})).unwrap();
-        assert!(result.get("error").is_some());
+        let result = execute_tool(&store, "unknown", &serde_json::json!({}));
+        assert!(result.is_err());
     }
 }
