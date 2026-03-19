@@ -30,7 +30,7 @@ eframe = { version = "0.33", default-features = false, features = ["default_font
 
 [package]
 name = "rahd"
-version = "2026.3.18"
+version = "2026.3.18-1"
 edition = "2024"
 description = "AI-native calendar and contacts for AGNOS"
 license = "GPL-3.0"

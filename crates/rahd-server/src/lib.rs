@@ -4,10 +4,12 @@
 //! - `GET /health` — health check
 //! - `GET /tools` — list MCP tool definitions
 //! - `POST /tools/{tool_name}` — execute an MCP tool
+//! - `POST /intents/resolve` — resolve scheduling intents locally (no LLM)
 //! - `GET /hoosh/health` — check hoosh connectivity
-//! - `POST /hoosh/intent` — send scheduling intent to hoosh for LLM processing
+//! - `POST /hoosh/intent` — scheduling intent with local resolution + hoosh LLM fallback
 
 pub mod hoosh;
+pub mod intents;
 
 use std::sync::{Arc, Mutex};
 
@@ -51,6 +53,7 @@ pub fn router(state: AppState) -> Router {
         .route("/tools/{tool_name}", post(call_tool))
         .route("/hoosh/health", get(hoosh_health))
         .route("/hoosh/intent", post(hoosh_intent))
+        .route("/intents/resolve", post(resolve_intent_handler))
         .with_state(state)
 }
 
@@ -115,10 +118,61 @@ async fn hoosh_health(State(state): State<AppState>) -> (StatusCode, Json<serde_
     }
 }
 
+async fn resolve_intent_handler(
+    State(state): State<AppState>,
+    Json(intent): Json<SchedulingIntent>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match state.store.lock() {
+        Ok(s) => s,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "store unavailable"})),
+            );
+        }
+    };
+
+    match intents::resolve_intent(&store, &intent.query) {
+        Some(resolved) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "action": resolved.action,
+                "explanation": resolved.explanation,
+                "result": resolved.result,
+                "source": "local",
+            })),
+        ),
+        None => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "action": "unknown",
+                "explanation": "Could not resolve intent locally. Try /hoosh/intent for LLM-assisted resolution.",
+                "source": "local",
+            })),
+        ),
+    }
+}
+
 async fn hoosh_intent(
     State(state): State<AppState>,
     Json(mut intent): Json<SchedulingIntent>,
 ) -> (StatusCode, Json<serde_json::Value>) {
+    // Try local intent resolution first (fast, no LLM needed)
+    if let Ok(store) = state.store.lock()
+        && let Some(resolved) = intents::resolve_intent(&store, &intent.query)
+    {
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "action": resolved.action,
+                "explanation": resolved.explanation,
+                "result": resolved.result,
+                "source": "local",
+            })),
+        );
+    }
+
+    // Fall back to hoosh LLM for ambiguous queries
     // Auto-populate context if not provided
     if intent.context.is_none() {
         let events = state
@@ -376,21 +430,94 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn hoosh_intent_fails_without_hoosh() {
+    async fn hoosh_intent_local_resolution() {
+        // "schedule a meeting" is resolved locally without needing hoosh
+        let app = router(test_state());
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::post("/hoosh/intent")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "schedule a meeting tomorrow at 3pm"})
+                            .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(result["source"], "local");
+        assert_eq!(result["action"], "create_event");
+    }
+
+    #[tokio::test]
+    async fn hoosh_intent_falls_through_to_hoosh() {
+        // Ambiguous query that local resolver can't handle falls through to hoosh
         let app = router(test_state());
         let resp = app
             .oneshot(
                 Request::post("/hoosh/intent")
                     .header("content-type", "application/json")
                     .body(Body::from(
-                        serde_json::json!({"query": "schedule a meeting"}).to_string(),
+                        serde_json::json!({"query": "rearrange everything to maximize focus time"})
+                            .to_string(),
                     ))
                     .unwrap(),
             )
             .await
             .unwrap();
-        // Should return BAD_GATEWAY since hoosh isn't running
+        // Should return BAD_GATEWAY since hoosh isn't running and local can't handle it
         assert_eq!(resp.status(), StatusCode::BAD_GATEWAY);
+    }
+
+    #[tokio::test]
+    async fn resolve_intent_endpoint() {
+        let app = router(test_state());
+        let resp = app
+            .oneshot(
+                Request::post("/intents/resolve")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "when am I free"}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(result["action"], "find_free_time");
+        assert_eq!(result["source"], "local");
+    }
+
+    #[tokio::test]
+    async fn resolve_intent_unknown() {
+        let app = router(test_state());
+        let resp = app
+            .oneshot(
+                Request::post("/intents/resolve")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"query": "what is the weather"}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let result: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(result["action"], "unknown");
     }
 
     #[tokio::test]

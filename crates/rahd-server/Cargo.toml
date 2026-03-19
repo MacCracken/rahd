@@ -1,11 +1,12 @@
 [package]
 name = "rahd-server"
-version = "2026.3.18"
+version = "2026.3.18-1"
 edition = "2024"
 description = "daimon API server — HTTP wrapper for Rahd MCP tools (port 8090)"
 license = "GPL-3.0"
 
 [dependencies]
+rahd-ai = { path = "../rahd-ai" }
 rahd-core = { path = "../rahd-core" }
 rahd-mcp = { path = "../rahd-mcp" }
 rahd-store = { path = "../rahd-store" }

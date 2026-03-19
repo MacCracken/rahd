@@ -1,6 +1,6 @@
 [package]
 name = "rahd-ai"
-version = "2026.3.18"
+version = "2026.3.18-1"
 edition = "2024"
 description = "AI-powered natural language event parsing and smart scheduling for Rahd"
 license = "GPL-3.0"

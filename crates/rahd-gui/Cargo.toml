@@ -1,6 +1,6 @@
 [package]
 name = "rahd-gui"
-version = "2026.3.18"
+version = "2026.3.18-1"
 edition = "2024"
 description = "Desktop GUI for Rahd calendar — day/week/month views (egui/eframe)"
 license = "GPL-3.0"

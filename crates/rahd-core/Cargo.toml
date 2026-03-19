@@ -1,6 +1,6 @@
 [package]
 name = "rahd-core"
-version = "2026.3.18"
+version = "2026.3.18-1"
 edition = "2024"
 description = "Core types for Rahd calendar and contacts"
 license = "GPL-3.0"

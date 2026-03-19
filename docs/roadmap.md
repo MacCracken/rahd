@@ -1,45 +1,10 @@
 # Roadmap
 
-## Phase 1 — Core Foundation (Complete)
+## Phase 3 — AGNOS Integration (In Progress)
 
-- [x] Event CRUD (create, read, update, delete)
-- [x] Contact management
-- [x] Natural language event parsing (keyword-based)
-- [x] Conflict detection
-- [x] Free/busy time slot analysis
-- [x] Meeting time suggestions
-- [x] Priority scoring
-- [x] SQLite local storage (JSON blobs + indexed timestamps)
-- [x] CLI with clap subcommands (8 commands)
-- [x] MCP tool definitions (5 tools)
-- [x] CI/CD pipeline (check, test, clippy, fmt + multi-arch release)
-- [x] Unit tests (49 tests across all crates)
-
-## MVP — Usable Daily Driver (Complete)
-
-The goal: a calendar you can actually rely on day-to-day from the terminal,
-with ICS interop so it's not an island.
-
-- [x] **Event update CLI** — `rahd edit <id> --title/--start/--end/--location`
-- [x] **ICS import/export** — import `.ics` files, export events as ICS
-- [x] **vCard import/export** — import/export contacts
-- [x] **Recurring event expansion** — generate concrete instances from recurrence rules
-- [x] **Reminder support** — store reminders on events, `rahd upcoming` for due-soon alerts
-- [x] **MCP tool execution** — wire MCP tool defs to actual store/schedule operations (daimon-ready)
-- [x] **Integration tests** — 8 end-to-end CLI tests (add → list → show → delete, edit, import/export)
-- [x] **Documentation** — usage guide, CONTRIBUTING.md, inline rustdoc on public API
-
-## Phase 3 — Desktop GUI & AGNOS Integration
-
-### Desktop GUI
-- [x] egui desktop app with day/week/month views
-- [x] Reminder notifications via desktop notifications (notify-rust)
-- [x] Drag-and-drop event rescheduling
-
-### AGNOS Integration
 - [x] daimon API server (port 8090) — HTTP wrapper for MCP tools
 - [x] hoosh API integration (port 8088) — LLM-powered scheduling
-- [ ] agnoshi intents: "schedule a meeting", "when am I free", "show my week"
+- [x] agnoshi intents: "schedule a meeting", "when am I free", "show my week"
 - [ ] Marketplace recipe and AGNOS app registration
 
 ## Post-MVP — Sync & Intelligence
