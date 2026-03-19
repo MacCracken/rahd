@@ -8,51 +8,61 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   ci:
     name: CI Gate
     uses: ./.github/workflows/ci.yml
 
   build:
+    name: Build (${{ matrix.arch }})
     needs: [ci]
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             arch: amd64
+            use_cross: false
           - target: aarch64-unknown-linux-gnu
             arch: arm64
-
-    runs-on: ubuntu-latest
+            use_cross: true
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
 
-      - name: Install cross-compilation tools (arm64)
-        if: matrix.arch == 'arm64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
-          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --locked
 
-      - name: Build
+      - name: Build (native)
+        if: ${{ !matrix.use_cross }}
         run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: matrix.use_cross
+        run: cross build --release --target ${{ matrix.target }}
 
       - name: Package
         run: |
-          VERSION=$(cat VERSION | tr -d '[:space:]')
+          VERSION="${{ steps.version.outputs.version }}"
           ARCHIVE="rahd-${VERSION}-linux-${{ matrix.arch }}.tar.gz"
           tar czf "${ARCHIVE}" -C target/${{ matrix.target }}/release rahd
           sha256sum "${ARCHIVE}" > "${ARCHIVE}.sha256"
-          echo "ARCHIVE=${ARCHIVE}" >> $GITHUB_ENV
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -61,12 +71,33 @@ jobs:
           path: |
             rahd-*.tar.gz
             rahd-*.sha256
+          retention-days: 7
 
   release:
+    name: Create Release
     needs: [ci, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | head -2 | tail -1)
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --oneline --no-decorate)
+          else
+            CHANGELOG=$(git log --oneline --no-decorate "${PREV_TAG}..HEAD")
+          fi
+          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
@@ -75,7 +106,24 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          name: Rahd ${{ steps.version.outputs.version }}
+          body: |
+            ## Rahd ${{ steps.version.outputs.version }}
+
+            ### Changes
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Downloads
+            | Platform | Archive |
+            |----------|---------|
+            | Linux amd64 | `rahd-${{ steps.version.outputs.version }}-linux-amd64.tar.gz` |
+            | Linux arm64 | `rahd-${{ steps.version.outputs.version }}-linux-arm64.tar.gz` |
+
+            ### Verification
+            ```bash
+            sha256sum -c rahd-*.sha256
+            ```
           files: |
             rahd-*.tar.gz
             rahd-*.sha256
-          generate_release_notes: true
+          generate_release_notes: false
